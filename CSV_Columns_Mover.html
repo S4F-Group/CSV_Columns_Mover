@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Column Mover</title>
+</head>
+<body>
+    <h2>Excel Column Mover</h2>
+    <input type="file" id="fileInput" />
+    <button id="processBtn">Process Excel</button>
+    <a id="downloadLink" style="display:none">Download Processed File</a>
+<!-- Include PapaParse library -->
+
+    <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+    <script>
+        document.getElementById("processBtn").addEventListener("click", function () {
+    const fileInput = document.getElementById("fileInput");
+    
+    if (!fileInput.files.length) {
+        alert("Please select an Excel file.");
+        return;
+    }
+
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+
+    reader.onload = function (e) {
+        const csvData = e.target.result;
+
+        // Parse CSV data
+        Papa.parse(csvData, {
+            header: true,
+            complete: function(results) {
+                let jsonData = results.data;
+
+                // Specify the columns to move
+                const columnsToMove = [
+                    "sku","status", "name","price", "pack","preferred_supplier", "supplier_code", 
+                    "_tier_price_website"	,"_tier_price_customer_group",	"_tier_price_qty",	"_tier_price_price",
+                    "_links_related_sku",	"_links_related_position",
+                    "_type", "description"
+                ]; 
+                const allColumns = jsonData.length ? Object.keys(jsonData[0]) : [];
+                const existingColumns = columnsToMove.filter(col => allColumns.includes(col));
+                const remainingColumns = allColumns.filter(col => !existingColumns.includes(col));
+                const newColumnOrder = [...existingColumns, ...remainingColumns];
+
+                // Rearrange data
+                const rearrangedData = jsonData.map(row => {
+                    let newRow = {};
+                    newColumnOrder.forEach(col => {
+                        newRow[col] = row[col];
+                    });
+                    return newRow;
+                });
+
+                // Convert JSON back to CSV
+                const csvOutput = Papa.unparse(rearrangedData);
+
+                // Create download link
+                const blob = new Blob([csvOutput], { type: "text/csv;charset=utf-8;" });
+                const url = URL.createObjectURL(blob);
+
+                // Get original file name (without extension)
+                const originalFileName = file.name.replace(/\.csv$/, "");
+                const newFileName = `${originalFileName}_moved_cols.csv`; // Add suffix
+
+                const downloadLink = document.getElementById("downloadLink");
+                downloadLink.href = url;
+                downloadLink.download = newFileName;
+                downloadLink.style.display = "block";
+                downloadLink.textContent = `Download ${newFileName}`;
+            }
+        });
+    };
+
+    reader.readAsText(file, "UTF-8"); // Ensure proper encoding
+});
+    </script>
+</body>
+</html>
